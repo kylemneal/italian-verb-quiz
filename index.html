@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Italian Verb Quiz</title>
+  <!-- React and ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Tailwind CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+</head>
+
+<body class="bg-gray-100 min-h-screen">
+  <div id="root"></div>
+  <!-- React Component -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const ItalianVerbQuiz = () => {
+      // State for storing verbs data
+      const [verbs, setVerbs] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      // State for tracking used verbs
+      const [usedVerbs, setUsedVerbs] = useState([]);
+
+      // State for current verb and user inputs
+      const [currentVerb, setCurrentVerb] = useState(null);
+      const [userAnswers, setUserAnswers] = useState({
+        io: '',
+        tu: '',
+        'lui/lei': '',
+        noi: '',
+        voi: '',
+        loro: ''
+      });
+      const [showAnswers, setShowAnswers] = useState(false);
+
+      // State for filters: verb endings (default on)
+      const [filters, setFilters] = useState({ are: true, ere: true, ire: true });
+      // State for filters: regularity (default on)
+      const [regularityFilters, setRegularityFilters] = useState({ regular: true, irregular: true });
+
+      // Parse the CSV data with trimming for headers and values
+      const parseCSV = (data) => {
+        const lines = data.split('\n');
+        const headers = lines[0].split(',').map((header) => header.trim());
+        return lines
+          .slice(1)
+          .filter((line) => line.trim())
+          .map((line) => {
+            const values = line.split(',');
+            const entry = {};
+            headers.forEach((header, index) => {
+              entry[header] = values[index] ? values[index].trim() : '';
+            });
+            return entry;
+          });
+      };
+
+      // Fetch the CSV data
+      useEffect(() => {
+        const fetchData = async () => {
+          try {
+            setLoading(true);
+            // Embedded CSV data with Regularity column added
+            const embeddedData = `Verb,Translation,io,tu,lui/lei,noi,voi,loro,Regularity
+Abitare,to live,abito,abiti,abita,abitiamo,abitate,abitano,regular
+Studiare,to study,studio,studi,studia,studiamo,studiate,studiano,regular
+Lavorare,to work,lavoro,lavori,lavora,lavoriamo,lavora,lavorano,regular
+Pensare,to think,penso,pensi,pensa,pensiamo,pensate,pensano,regular
+Parlare,to talk,parlo,parli,parla,parliamo,parlate,parlano,regular
+Arrivare,to arrive,arrivo,arrivi,arriva,arriviamo,arrivate,arrivano,regular
+Cominciare,to begin,comincio,cominci,comincia,cominciamo,cominciate,cominciano,regular
+Ascoltare,to listen,ascolto,ascolti,ascolta,ascoltiamo,ascoltate,ascoltano,regular
+Ordinare,to order,ordino,ordini,ordina,ordiniamo,ordinate,ordinano,regular
+Portare,to bring,porto,porti,porta,portiamo,portate,portano,regular
+Giocare,to play,gioco,giochi,gioca,giochiate,giocano,regular
+Dimenticare,to forget,dimentico,dimentichi,dimentica,dimentichiamo,dimenticate,dimenticano,regular
+Suonare,to play (instrument),suono,suoni,suona,suoniamo,suonate,suonano,regular
+Ritornare,to return,ritorno,ritorni,ritorna,ritorniamo,ritornate,ritornano,regular
+Ballare,to dance,ballo,balli,balla,balliamo,ballate,ballano,regular
+Mangiare,to eat,mangio,mangi,mangia,mangiamo,mangiate,mangiano,regular
+Telefonare,to call,telefono,telefoni,telefona,telefoniamo,telefonate,telefonano,regular
+Comprare,to buy,compro,compri,compra,compriamo,comprate,comprare,regular
+Pagare,to pay,pago,paghi,paga,paghiamo,pagate,pagano,regular
+Spiegare,to explain,spiego,spieghi,spiega,spieghiamo,spiegate,spiegano,regular
+Guidare,to drive,guido,guidi,guida,guidiamo,guidate,guidano,regular
+Amare,to love,amo,ami,ama,amiamo,amate,amano,regular
+Guardare,to watch,guardo,guardi,guarda,guardiamo,guardate,guardano,regular
+Dare,to give,do,dai,dà,diamo,date,danno,irregular
+Stare,to stay,sto,stai,sta,stiamo,state,stanno,irregular
+Fare,to do/to make,faccio,fai,fa,facciamo,fate,fanno,irregular
+Andare,to go,vado,vai,va,andiamo,andate,vanno,irregular
+`;
+            // Try to load from CSV file first
+            try {
+              const response = await fetch('./italian_verbs.csv');
+              if (response.ok) {
+                const csvText = await response.text();
+                const parsedData = parseCSV(csvText);
+                setVerbs(parsedData);
+                console.log("Loaded data from CSV file:", parsedData.length, "verbs");
+              } else {
+                throw new Error("Couldn't load CSV file");
+              }
+            } catch (fetchError) {
+              console.warn("Using embedded data instead:", fetchError);
+              const parsedData = parseCSV(embeddedData);
+              setVerbs(parsedData);
+              console.log("Loaded embedded data:", parsedData.length, "verbs");
+              console.log("Parsed verbs:", parsedData);
+            }
+            setLoading(false);
+          } catch (error) {
+            console.error("Error loading verb data:", error);
+            setError("Failed to load verb data. Please try again later.");
+            setLoading(false);
+          }
+        };
+        fetchData();
+      }, []);
+
+      // Debug: log current verb keys for troubleshooting
+      useEffect(() => {
+        if (currentVerb) {
+          console.log("Current verb keys:", Object.keys(currentVerb));
+        }
+      }, [currentVerb]);
+
+      // Get a random verb that respects filters and hasn't been used
+      const getRandomVerb = () => {
+        if (verbs.length === 0) return null;
+        const filteredVerbs = verbs.filter((verb) => {
+          const lowerVerb = verb.Verb.trim().toLowerCase();
+          const matchesEnding =
+            (filters.are && lowerVerb.endsWith("are")) ||
+            (filters.ere && lowerVerb.endsWith("ere")) ||
+            (filters.ire && lowerVerb.endsWith("ire"));
+          const regularity = verb.Regularity ? verb.Regularity.trim().toLowerCase() : '';
+          const matchesRegularity =
+            (regularityFilters.regular && regularity === "regular") ||
+            (regularityFilters.irregular && regularity === "irregular");
+          return matchesEnding && matchesRegularity;
+        });
+        if (filteredVerbs.length === 0) return null;
+        let availableVerbs = filteredVerbs.filter((verb) => !usedVerbs.includes(verb.Verb));
+        if (availableVerbs.length === 0) {
+          console.log("Resetting used verbs list for filtered verbs");
+          setUsedVerbs([]);
+          if (currentVerb) {
+            setUsedVerbs([currentVerb.Verb]);
+          }
+          availableVerbs = filteredVerbs.filter((verb) =>
+            currentVerb ? verb.Verb !== currentVerb.Verb : true
+          );
+        }
+        const randomIndex = Math.floor(Math.random() * availableVerbs.length);
+        return availableVerbs[randomIndex];
+      };
+
+      // When filters or verbs change, if no current verb is set try to update it
+      useEffect(() => {
+        if (!currentVerb && verbs.length > 0) {
+          const newVerb = getRandomVerb();
+          if (newVerb) {
+            setCurrentVerb(newVerb);
+          }
+        }
+      }, [filters, regularityFilters, verbs, currentVerb]);
+
+      // Initialize with a random verb once data is loaded
+      useEffect(() => {
+        if (verbs.length > 0 && !currentVerb) {
+          const firstVerb = getRandomVerb();
+          if (firstVerb) {
+            setCurrentVerb(firstVerb);
+            setUsedVerbs([firstVerb.Verb]);
+          }
+        }
+      }, [verbs, currentVerb]);
+
+      // Handle input changes
+      const handleInputChange = (pronoun, value) => {
+        setUserAnswers((prev) => ({
+          ...prev,
+          [pronoun]: value
+        }));
+      };
+
+      // Check if answer is correct (ignoring case and extra spaces)
+      const isCorrect = (pronoun) => {
+        if (!currentVerb || !currentVerb[pronoun]) return false;
+        return (
+          userAnswers[pronoun].trim().toLowerCase() ===
+          currentVerb[pronoun].trim().toLowerCase()
+        );
+      };
+
+      // Handle button click
+      const handleButtonClick = () => {
+        if (showAnswers) {
+          const nextVerb = getRandomVerb();
+          setCurrentVerb(nextVerb);
+          setUserAnswers({
+            io: '',
+            tu: '',
+            'lui/lei': '',
+            noi: '',
+            voi: '',
+            loro: ''
+          });
+          setShowAnswers(false);
+          if (nextVerb) {
+            setUsedVerbs((prev) => [...prev, nextVerb.Verb]);
+          }
+          setTimeout(() => {
+            const firstInput = document.querySelector('input');
+            if (firstInput) firstInput.focus();
+          }, 0);
+        } else {
+          setShowAnswers(true);
+        }
+      };
+
+      // Handle key press for Enter key
+      const handleKeyPress = (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleButtonClick();
+        }
+      };
+
+      useEffect(() => {
+        document.addEventListener("keydown", handleKeyPress);
+        return () => {
+          document.removeEventListener("keydown", handleKeyPress);
+        };
+      }, [showAnswers]);
+
+      const pronouns = ["io", "tu", "lui/lei", "noi", "voi", "loro"];
+
+      if (loading)
+        return <div className="text-center p-8">Loading verb data...</div>;
+      if (error)
+        return <div className="text-center p-8 text-red-600">{error}</div>;
+      if (!currentVerb)
+        return (
+          <div className="text-center p-8">
+            <p>No verbs available for the selected filters.</p>
+            <button
+              onClick={() => {
+                // Reset filters to default and clear used verbs/current verb
+                setFilters({ are: true, ere: true, ire: true });
+                setRegularityFilters({ regular: true, irregular: true });
+                setUsedVerbs([]);
+                setCurrentVerb(null);
+                setTimeout(() => {
+                  const newVerb = getRandomVerb();
+                  if (newVerb) {
+                    setCurrentVerb(newVerb);
+                  }
+                }, 0);
+              }}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
+            >
+              Reset Filters
+            </button>
+          </div>
+        );
+
+      return (
+        <div className="max-w-3xl mx-auto p-6 bg-white rounded shadow flex">
+          {/* Left Side: Main Quiz Content */}
+          <div className="flex-1">
+            <div className="flex flex-col items-center mb-8">
+              <div className="relative group">
+                <h1 className="text-3xl font-bold border-b-2 border-dotted border-gray-400">
+                  {currentVerb.Verb}
+                </h1>
+                <div className="absolute opacity-0 group-hover:opacity-100 transition duration-300 bg-gray-800 text-white text-sm p-2 rounded top-full left-1/2 transform -translate-x-1/2 mt-1 z-10 whitespace-nowrap min-w-max">
+                  {currentVerb.Translation}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-4">
+              {pronouns.map((pronoun) => (
+                <div key={pronoun} className="flex items-center space-x-4">
+                  <div className="w-16 text-right font-medium">{pronoun}</div>
+                  <input
+                    type="text"
+                    value={userAnswers[pronoun]}
+                    onChange={(e) => handleInputChange(pronoun, e.target.value)}
+                    className="border border-gray-300 p-2 rounded w-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={showAnswers}
+                  />
+                  {showAnswers && (
+                    <div
+                      className={
+                        isCorrect(pronoun)
+                          ? "text-green-600 font-medium"
+                          : "text-red-600 font-medium"
+                      }
+                    >
+                      {currentVerb[pronoun]}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 text-center">
+              <button
+                onClick={handleButtonClick}
+                className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                {showAnswers ? "Next" : "Show Answers"}
+              </button>
+            </div>
+            <div className="mt-4 text-center text-sm text-gray-500">
+              Press Enter to {showAnswers ? "go to next verb" : "show answers"}
+              <p className="mt-2">testing</p>
+            </div>
+          </div>
+          {/* Right Side: Filter Checkboxes */}
+          <div className="w-48 pl-4 border-l border-gray-200">
+            {/* Verb Endings Filter */}
+            <h2 className="text-lg font-bold mb-4">Verb Endings</h2>
+            <div className="flex flex-col space-y-2 mb-6">
+              <label className="flex items-center space-x-1">
+                <input
+                  type="checkbox"
+                  checked={filters.are}
+                  onChange={() =>
+                    setFilters({ ...filters, are: !filters.are })
+                  }
+                  className="form-checkbox"
+                />
+                <span>are</span>
+              </label>
+              <label className="flex items-center space-x-1">
+                <input
+                  type="checkbox"
+                  checked={filters.ere}
+                  onChange={() =>
+                    setFilters({ ...filters, ere: !filters.ere })
+                  }
+                  className="form-checkbox"
+                />
+                <span>ere</span>
+              </label>
+              <label className="flex items-center space-x-1">
+                <input
+                  type="checkbox"
+                  checked={filters.ire}
+                  onChange={() =>
+                    setFilters({ ...filters, ire: !filters.ire })
+                  }
+                  className="form-checkbox"
+                />
+                <span>ire</span>
+              </label>
+            </div>
+            {/* Regularity Filter */}
+            <h2 className="text-lg font-bold mb-4">Verb Regularity</h2>
+            <div className="flex flex-col space-y-2">
+              <label className="flex items-center space-x-1">
+                <input
+                  type="checkbox"
+                  checked={regularityFilters.regular}
+                  onChange={() =>
+                    setRegularityFilters({
+                      ...regularityFilters,
+                      regular: !regularityFilters.regular
+                    })
+                  }
+                  className="form-checkbox"
+                />
+                <span>Regular</span>
+              </label>
+              <label className="flex items-center space-x-1">
+                <input
+                  type="checkbox"
+                  checked={regularityFilters.irregular}
+                  onChange={() =>
+                    setRegularityFilters({
+                      ...regularityFilters,
+                      irregular: !regularityFilters.irregular
+                    })
+                  }
+                  className="form-checkbox"
+                />
+                <span>Irregular</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Render the component
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<ItalianVerbQuiz />);
+  </script>
+</body>
+
+</html>
